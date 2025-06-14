@@ -56,7 +56,7 @@ class CampaignProducts(models.Model):
 
 
 class PaymentDetails(models.Model):
-    id = models.TextField(primary_key=True)  
+    id = models.AutoField(db_column='Id', primary_key=True)
     client_id = models.CharField(blank=True, null=True)
     chain_code = models.CharField(blank=True, null=True)
     campaign_code = models.CharField(blank=True, null=True)

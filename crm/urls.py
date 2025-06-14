@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     get_client, CreateClient, get_chain_marketing, 
     get_client_list, save_sales_dump, save_marketing_plan, 
-    get_plan_list, ProductAPIView
+    get_plan_list, ProductAPIView, PaymentDetailsView
 )
 
 
@@ -15,4 +15,5 @@ urlpatterns = [
     path('save_plan/', save_marketing_plan, name="save campaign marketing code in table"),
     path('plan_list/', get_plan_list, name="get list of generated campaign marketing code"),
     path('products/', ProductAPIView.as_view(), name='product with price'),
+    path('payments/', PaymentDetailsView.as_view(), name='payment-details'),
 ]

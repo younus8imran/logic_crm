@@ -30,3 +30,5 @@ class MarketingPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = MarketingPlan
         fields = '__all__'
+
+        
