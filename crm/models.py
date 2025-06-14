@@ -42,9 +42,10 @@ class PlanMapping(models.Model):
         db_table = 'plan_mapping'
 
 
-class CampaignProduct(models.Model):
-    campaign_code = models.CharField(blank=True, null=True)
+class CampaignProducts(models.Model):
+    id = models.AutoField(db_column='Id', primary_key=True)
     chain_code = models.CharField(blank=True, null=True)
+    chain_name = models.CharField(blank=True, null=True)
     product_code = models.CharField(blank=True, null=True)
     description = models.CharField(blank=True, null=True)
     price = models.CharField(blank=True, null=True)

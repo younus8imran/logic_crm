@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Marketing, CampaignProduct, PaymentDetails, SalesDump, MarketingPlan
+from .models import Marketing, CampaignProducts, PaymentDetails, SalesDump, MarketingPlan
 
 class MarketingSerializer(serializers.ModelSerializer):
     client_id = serializers.IntegerField()
@@ -11,7 +11,7 @@ class MarketingSerializer(serializers.ModelSerializer):
 
 class CampaignProductSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CampaignProduct
+        model = CampaignProducts
         fields = '__all__'
 
 class PaymentDetailsSerializer(serializers.ModelSerializer):

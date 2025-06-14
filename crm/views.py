@@ -1,9 +1,10 @@
+from collections import defaultdict
 from datetime import datetime, timedelta
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Marketing, PlanMapping, CampaignProduct, PaymentDetails, MarketingPlan
+from .models import Marketing, PlanMapping, PaymentDetails, MarketingPlan, CampaignProducts
 from .serializers import MarketingSerializer, CampaignProductSerializer, PaymentDetailsSerializer, SalesDumpSerializer, MarketingPlanSerializer
 
 
@@ -73,15 +74,34 @@ def get_client(request):
     response_data['next_plan'] = next_plan_data
 
     # Include campaign product info
-    campaign_product = CampaignProduct.objects.filter(
-        campaign_code=campaign_code,
+    campaign_product = CampaignProducts.objects.filter(
         chain_code=chain_code
-    ).first()
+    )
+
     if campaign_product:
-        product_serializer = CampaignProductSerializer(campaign_product)
-        response_data['campaign_products'] = product_serializer.data
+        product_serializer = CampaignProductSerializer(campaign_product, many=True)
+
+        # Assuming all products have the same chain_name and chain_code
+        first_product = product_serializer.data[0]
+
+        response_data['products'] = [
+            {
+                "id": item["id"],
+                "product_code": item["product_code"],
+                "description": item["description"],
+                "price": item["price"]
+            }
+            for item in product_serializer.data
+        ]
     else:
-        response_data['campaign_products'] = None
+        response_data['products'] = []
+
+
+    # if campaign_product:
+    #     product_serializer = CampaignProductSerializer(campaign_product)
+    #     response_data['campaign_products'] = product_serializer.data
+    # else:
+    #     response_data['campaign_products'] = None
 
     # Include payment details info
     if payment_detail:
@@ -102,52 +122,77 @@ def get_client_list(request):
 
 
 
+# class CreateClient(APIView):
+#     def post(self, request):
+#         client_id = request.data.get('client_id')
+#         campaign_code = request.data.get('campaign_code')
+#         chain_code = request.data.get('chain_code')
+
+#         if not (client_id and campaign_code and chain_code):
+#             return Response(
+#                 {"error": "client_id, campaign_code, and chain_code are required."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         exists = Marketing.objects.filter(
+#             client_id=client_id,
+#             campaign_code=campaign_code,
+#             chain_code=chain_code
+#         ).exists()
+
+#         if exists:
+#             return Response({"exists": True, "message": "Record already exists."})
+
+#         # Add data for creating a new record
+#         serializer = MarketingSerializer(data={
+#             "client_id": client_id,
+#             "origin": request.data.get("origin"),
+#             "first_name": request.data.get("first_name"),
+#             "last_name": request.data.get("last_name"),
+#             "address_1": request.data.get("address_1"),
+#             "address_2": request.data.get("address_2"),
+#             "city": request.data.get("city"),
+#             "zip": request.data.get("zip"),
+#             "country": request.data.get("country"),
+#             "campaign_code": campaign_code,
+#             "chain_code": chain_code
+#         })
+
+#         if serializer.is_valid():
+#             serializer.save()
+#             print(serializer)
+#             return Response({
+#                 "exists": False,
+#                 "message": "Record created successfully.",
+#                 "data": serializer.data
+#             }, status=status.HTTP_201_CREATED)
+#         else:
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class CreateClient(APIView):
     def post(self, request):
-        client_id = request.data.get('client_id')
-        campaign_code = request.data.get('campaign_code')
-        chain_code = request.data.get('chain_code')
+        serializer = MarketingSerializer(data=request.data)
 
-        if not (client_id and campaign_code and chain_code):
-            return Response(
-                {"error": "client_id, campaign_code, and chain_code are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        client_id = serializer.validated_data.get("client_id")
 
         exists = Marketing.objects.filter(
-            client_id=client_id,
-            campaign_code=campaign_code,
-            chain_code=chain_code
+            client_id=client_id
         ).exists()
 
         if exists:
             return Response({"exists": True, "message": "Record already exists."})
 
-        # Add data for creating a new record
-        serializer = MarketingSerializer(data={
-            "client_id": client_id,
-            "origin": request.data.get("origin"),
-            "first_name": request.data.get("first_name"),
-            "last_name": request.data.get("last_name"),
-            "address_1": request.data.get("address_1"),
-            "address_2": request.data.get("address_2"),
-            "city": request.data.get("city"),
-            "zip": request.data.get("zip"),
-            "country": request.data.get("country"),
-            "campaign_code": campaign_code,
-            "chain_code": chain_code
-        })
+        serializer.save()
+        return Response({
+            "exists": False,
+            "message": "Record created successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
 
-        if serializer.is_valid():
-            serializer.save()
-            print(serializer)
-            return Response({
-                "exists": False,
-                "message": "Record created successfully.",
-                "data": serializer.data
-            }, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -256,3 +301,65 @@ def get_plan_list(request):
         response_list.append(result)
 
     return Response(response_list, status=status.HTTP_200_OK)
+
+
+class ProductAPIView(APIView):
+    
+    def post(self, request):
+        chain_name = request.data.get('chain_name')
+        chain_code = request.data.get('campaign_code')
+        product_code = request.data.get('product_code')
+
+        if not chain_name or not chain_code or not product_code:
+            return Response({
+                "error": "Fields 'chain_name', 'campaign_code', and 'product_code' are required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if combination already exists
+        exists = CampaignProducts.objects.filter(
+            chain_name=chain_name,
+            campaign_code=chain_code,
+            product_code=product_code
+        ).exists()
+
+        if exists:
+            return Response({
+                "exists": True,
+                "message": "This product entry already exists."
+            }, status=status.HTTP_200_OK)
+
+        serializer = CampaignProductSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "Product created successfully.",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def get(self, request):
+        products = CampaignProducts.objects.all()
+        serializer = CampaignProductSerializer(products, many=True)
+
+        grouped_data = defaultdict(list)
+
+        for item in serializer.data:
+            key = (item['chain_code'], item['chain_name'])
+            grouped_data[key].append({
+                "id": item["id"],
+                "product_code": item["product_code"],
+                "description": item["description"],
+                "price": item["price"]
+            })
+
+        response = [
+            {
+                "chain_code": k[0],
+                "chain_name": k[1],
+                "products": v
+            } for k, v in grouped_data.items()
+        ]
+
+        return Response(response, status=status.HTTP_200_OK)
